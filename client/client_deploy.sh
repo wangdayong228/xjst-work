@@ -32,6 +32,12 @@ AUTO_DEPLOY_L1_CONTRACTS="${AUTO_DEPLOY_L1_CONTRACTS:-${DEPLOY_L1_CONTRACTS:-}}"
 AUTO_DEPLOY_NODE_ID="${AUTO_DEPLOY_NODE_ID:-$DEFAULT_AUTO_DEPLOY_NODE_ID}"
 SSH_USER="${SSH_USER:-ubuntu}"
 SSH_KEY_PATH="${SSH_KEY_PATH:-}"
+FETCH_L1_FROM_NODE1="${FETCH_L1_FROM_NODE1:-}"
+NODE_1_SSH_USER="${NODE_1_SSH_USER:-}"
+NODE_1_SSH_KEY_PATH="${NODE_1_SSH_KEY_PATH:-}"
+NODE_1_SSH_HOST="${NODE_1_SSH_HOST:-}"
+L1_FETCH_MAX_ATTEMPTS="${L1_FETCH_MAX_ATTEMPTS:-}"
+L1_FETCH_INTERVAL="${L1_FETCH_INTERVAL:-}"
 if [ -z "$SSH_KEY_PATH" ] && [ -n "${KEY_NAME:-}" ]; then
     SSH_KEY_PATH="$HOME/.ssh/${KEY_NAME}.pem"
 fi
@@ -55,6 +61,12 @@ show_help() {
     echo "  L1_CORESPACE_RPC_URL - 可选，透传至自定义配置的 L1 CoreSpace RPC 地址"
     echo "  AUTO_DEPLOY_L1_CONTRACTS / DEPLOY_L1_CONTRACTS - 可选，true 时容器内自动部署 L1 合约并写回地址"
     echo "  L1_CHAIN_ID, L1_GAS_PRICE, L1_ADMIN_PRIVATE_KEY, L1_ADMIN_ADDRESS - 可选，透传合约部署参数"
+    echo "  FETCH_L1_FROM_NODE1  - 可选，node-2/3/4 是否通过SSH从node-1获取L1信息"
+    echo "  NODE_1_SSH_USER      - 可选，node-1 SSH用户 (默认: ubuntu)"
+    echo "  NODE_1_SSH_KEY_PATH  - 可选，node-1 SSH私钥路径(宿主机路径，会映射到容器 /root/4node-test.pem)"
+    echo "  NODE_1_SSH_HOST      - 可选，node-1 SSH主机地址 (默认: NODE1_IP)"
+    echo "  L1_FETCH_MAX_ATTEMPTS - 可选，L1信息拉取最大重试次数"
+    echo "  L1_FETCH_INTERVAL    - 可选，L1信息拉取重试间隔(秒)"
     echo ""
     echo "示例用法:"
     echo "  export IPS=\"192.168.4.45 192.168.4.46 192.168.4.47 192.168.4.48\""
@@ -182,6 +194,7 @@ launch_deploy() {
     local node_idx="$2"
     local auto_flag="$3"
     local extra_env="$4"
+    local fetch_flag="$5"
 
     local name="${TAG}-node-${node_idx}"
     local node_id="node-${node_idx}"
@@ -200,6 +213,12 @@ launch_deploy() {
                  export L1_ESPACE_RPC_URL='${L1_ESPACE_RPC_URL:-}' && \
                  export L1_CORESPACE_RPC_URL='${L1_CORESPACE_RPC_URL:-}' && \
                  export AUTO_DEPLOY_L1_CONTRACTS='$auto_flag' && \
+                 export FETCH_L1_FROM_NODE1='$fetch_flag' && \
+                 export NODE_1_SSH_USER='${NODE_1_SSH_USER:-}' && \
+                 export NODE_1_SSH_KEY_PATH='${NODE_1_SSH_KEY_PATH:-}' && \
+                 export NODE_1_SSH_HOST='${NODE_1_SSH_HOST:-}' && \
+                 export L1_FETCH_MAX_ATTEMPTS='${L1_FETCH_MAX_ATTEMPTS:-}' && \
+                 export L1_FETCH_INTERVAL='${L1_FETCH_INTERVAL:-}' && \
                  export DEPLOY_L1_CONTRACTS='' && \
                  export L1_CHAIN_ID='${L1_CHAIN_ID:-}' && \
                  export L1_GAS_PRICE='${L1_GAS_PRICE:-}' && \
@@ -208,7 +227,7 @@ launch_deploy() {
                  $extra_env \
                  cd ~ && \
                  if [ ! -f './deploy_node.sh' ]; then echo 'ERROR: deploy_node.sh not found'; exit 1; fi && \
-                 ./deploy_node.sh && \
+                ./deploy_node.sh && \
                  echo 'DEPLOY_SUCCESS: Node deployment completed successfully'"
         else
             cmd="set -e && $REMOTE_CMD"
@@ -351,58 +370,9 @@ rpc_health_check_all() {
     echo "✅ 所有节点RPC检查通过"
 }
 
-extract_l1_env() {
-    local ip="$1"
-    local node_idx="$2"
-    local container="${CHAIN_NAME}_node${node_idx}"
-    echo "🔍 从 node-${node_idx} 获取 L1 部署结果..."
-    addr_output=$(ssh "${SSH_COMMON_OPTS[@]}" "$SSH_USER@$ip" "docker exec $container sh -c \"grep '^l1_' /opt/blockchain/customized_config.toml | sed 's/[[:space:]]//g' | sed 's/\\\"//g'\"") || true
-    if [ -z "$addr_output" ]; then
-        echo "❌ 无法从容器 $container 获取 L1 地址，请检查日志"
-        exit 1
-    fi
-    echo "$addr_output"
-    while IFS='=' read -r k v; do
-        case "$k" in
-            l1_state_sender_addr) L1_STATE_SENDER_ADDR="$v" ;;
-            l1_unified_bridge_addr) L1_UNIFIED_BRIDGE_ADDR="$v" ;;
-            l1_simple_calculator_addr) L1_SIMPLE_CALCULATOR_ADDR="$v" ;;
-            l1_chain_id) L1_CHAIN_ID="$v" ;;
-            l1_start_epoch) L1_START_EPOCH="$v" ;;
-            l1_admin_private_key) L1_ADMIN_PRIVATE_KEY="$v" ;;
-            l1_admin_address) L1_ADMIN_ADDRESS="$v" ;;
-        esac
-    done <<< "$addr_output"
-}
-
-# 先部署主节点获取 L1 地址（如需要），再部署其余节点
-NEED_CAPTURE=false
-if [ -n "$AUTO_DEPLOY_L1_CONTRACTS" ]; then
-    if [ -z "${L1_STATE_SENDER_ADDR:-}" ] || [ -z "${L1_UNIFIED_BRIDGE_ADDR:-}" ] || [ -z "${L1_SIMPLE_CALCULATOR_ADDR:-}" ]; then
-        NEED_CAPTURE=true
-    fi
-fi
-
-if [ "$NEED_CAPTURE" = true ]; then
-    lead_idx="$AUTO_DEPLOY_NODE_ID"
-    lead_ip="${IPS_ARRAY[$((lead_idx-1))]}"
-    launch_deploy "$lead_ip" "$lead_idx" "true" ""
-    wait_for_deploys
-    echo "⏱  等待 30s 后获取 L1 部署结果..."
-    sleep 30
-    extract_l1_env "$lead_ip" "$lead_idx"
-    echo "✅ 获取到 L1 地址，准备分发到其他节点"
-    export L1_STATE_SENDER_ADDR L1_UNIFIED_BRIDGE_ADDR L1_SIMPLE_CALCULATOR_ADDR L1_CHAIN_ID L1_START_EPOCH L1_ADMIN_PRIVATE_KEY L1_ADMIN_ADDRESS
-    AUTO_DEPLOY_L1_CONTRACTS=""
-fi
-
-# 部署剩余节点（或全部节点在未开启自动部署时）
+# 部署全部节点
 idx=1
 for ip in $IPS; do
-    if [ "$NEED_CAPTURE" = true ] && [ "$idx" -eq "$AUTO_DEPLOY_NODE_ID" ]; then
-        idx=$((idx+1))
-        continue
-    fi
     extra_env=""
     if [ -n "${L1_STATE_SENDER_ADDR:-}" ]; then
         extra_env+="export L1_STATE_SENDER_ADDR='${L1_STATE_SENDER_ADDR}'; "
@@ -425,7 +395,19 @@ for ip in $IPS; do
     if [ -n "${L1_ADMIN_ADDRESS:-}" ]; then
         extra_env+="export L1_ADMIN_ADDRESS='${L1_ADMIN_ADDRESS}'; "
     fi
-    launch_deploy "$ip" "$idx" "${AUTO_DEPLOY_L1_CONTRACTS}" "$extra_env"
+    auto_flag=""
+    fetch_flag="$FETCH_L1_FROM_NODE1"
+    if [ -n "$AUTO_DEPLOY_L1_CONTRACTS" ]; then
+        if [ "$idx" -eq "$AUTO_DEPLOY_NODE_ID" ]; then
+            auto_flag="$AUTO_DEPLOY_L1_CONTRACTS"
+            fetch_flag=""
+        else
+            if [ -z "$fetch_flag" ]; then
+                fetch_flag="true"
+            fi
+        fi
+    fi
+    launch_deploy "$ip" "$idx" "$auto_flag" "$extra_env" "$fetch_flag"
     idx=$((idx+1))
 done
 

@@ -48,6 +48,12 @@ show_help() {
     echo "  BASE_RPC_PORT    - 可选，基础RPC端口 (默认: 30010)"
     echo "  AUTO_DEPLOY_L1_CONTRACTS / DEPLOY_L1_CONTRACTS - 可选，true 时容器内自动部署 L1 合约"
     echo "  L1_CHAIN_ID, L1_GAS_PRICE, L1_ADMIN_PRIVATE_KEY, L1_ADMIN_ADDRESS - 可选，透传 L1 部署参数"
+    echo "  FETCH_L1_FROM_NODE1   - 可选，true 时从 node-1 获取 L1 合约结果"
+    echo "  NODE_1_SSH_USER       - 可选，node-1 SSH 用户 (默认: ubuntu)"
+    echo "  NODE_1_SSH_KEY_PATH   - 可选，node-1 SSH 私钥路径(宿主机路径，将映射到容器 /root/4node-test.pem)"
+    echo "  NODE_1_SSH_HOST       - 可选，node-1 SSH 主机地址 (默认: NODE1_IP)"
+    echo "  L1_FETCH_MAX_ATTEMPTS - 可选，拉取重试次数"
+    echo "  L1_FETCH_INTERVAL     - 可选，拉取重试间隔(秒)"
     echo ""
     echo "示例用法:"
     echo "  export CHAIN_NODE_IPS=\"[192.168.4.45,192.168.4.46,192.168.4.47,192.168.4.48]\""
@@ -101,6 +107,14 @@ L1_STATE_SENDER_ADDR="${L1_STATE_SENDER_ADDR:-}"
 L1_UNIFIED_BRIDGE_ADDR="${L1_UNIFIED_BRIDGE_ADDR:-}"
 L1_SIMPLE_CALCULATOR_ADDR="${L1_SIMPLE_CALCULATOR_ADDR:-}"
 L1_START_EPOCH="${L1_START_EPOCH:-}"
+FETCH_L1_FROM_NODE1="${FETCH_L1_FROM_NODE1:-}"
+NODE_1_SSH_USER="${NODE_1_SSH_USER:-}"
+NODE_1_SSH_KEY_PATH="${NODE_1_SSH_KEY_PATH:-}"
+NODE_1_SSH_HOST="${NODE_1_SSH_HOST:-}"
+L1_FETCH_MAX_ATTEMPTS="${L1_FETCH_MAX_ATTEMPTS:-}"
+L1_FETCH_INTERVAL="${L1_FETCH_INTERVAL:-}"
+NODE_1_SSH_KEY_HOST_PATH="${NODE_1_SSH_KEY_PATH:-/home/ubuntu/.ssh/4node-test.pem}"
+NODE_1_SSH_KEY_PATH="/root/4node-test.pem"
 
 # 计算RPC端口
 JSONRPC_HTTP_PORT=$BASE_RPC_PORT           # 30010
@@ -151,6 +165,9 @@ if [ -n "$L1_STATE_SENDER_ADDR" ] || [ -n "$L1_UNIFIED_BRIDGE_ADDR" ] || [ -n "$
 fi
 if [ -n "$L1_START_EPOCH" ]; then
     echo "📍 L1 Start Epoch: $L1_START_EPOCH"
+fi
+if [ -n "$FETCH_L1_FROM_NODE1" ]; then
+    echo "📍 从 node-1 拉取 L1 部署结果: $FETCH_L1_FROM_NODE1"
 fi
 echo ""
 
@@ -279,6 +296,33 @@ if [ -n "$L1_SIMPLE_CALCULATOR_ADDR" ]; then
 fi
 if [ -n "$L1_START_EPOCH" ]; then
     docker_args+=(-e "L1_START_EPOCH=$L1_START_EPOCH")
+fi
+if [ -n "$FETCH_L1_FROM_NODE1" ]; then
+    docker_args+=(-e "FETCH_L1_FROM_NODE1=$FETCH_L1_FROM_NODE1")
+fi
+if [ -n "$NODE_1_SSH_USER" ]; then
+    docker_args+=(-e "NODE_1_SSH_USER=$NODE_1_SSH_USER")
+fi
+if [ -n "$NODE_1_SSH_KEY_PATH" ]; then
+    docker_args+=(-e "NODE_1_SSH_KEY_PATH=$NODE_1_SSH_KEY_PATH")
+fi
+if [ -n "$NODE_1_SSH_HOST" ]; then
+    docker_args+=(-e "NODE_1_SSH_HOST=$NODE_1_SSH_HOST")
+fi
+if [ -n "$L1_FETCH_MAX_ATTEMPTS" ]; then
+    docker_args+=(-e "L1_FETCH_MAX_ATTEMPTS=$L1_FETCH_MAX_ATTEMPTS")
+fi
+if [ -n "$L1_FETCH_INTERVAL" ]; then
+    docker_args+=(-e "L1_FETCH_INTERVAL=$L1_FETCH_INTERVAL")
+fi
+
+if [ -n "$FETCH_L1_FROM_NODE1" ]; then
+    if [ ! -f "$NODE_1_SSH_KEY_HOST_PATH" ]; then
+        record_error "node-1 SSH私钥不存在: $NODE_1_SSH_KEY_HOST_PATH"
+    else
+        docker_args+=(-v "$NODE_1_SSH_KEY_HOST_PATH:/root/4node-test.pem:ro")
+    fi
+    check_and_exit_on_error "SSH密钥检查"
 fi
 
 docker_args+=("$IMAGE_TAG")

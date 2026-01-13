@@ -1,0 +1,15 @@
+version: '3'
+services:
+
+  web:
+    restart: always
+    image: registry.xjshutu.com/library/conflux/logio:0.5
+    container_name: baas_log_web${HOST_WEB_PORT}
+    environment:
+      - LOGIO_FILE_INPUT_PATH=/logio/conflux.log
+      - LOGIO_USERNAME=${LOGIO_USERNAME:-admin}
+      - LOGIO_PASSWORD=${LOGIO_PASSWORD:-admin}
+    volumes:
+      - ${HOST_LOG_PATH}:/logio
+    ports:
+      - ${HOST_WEB_PORT:-6688}:6688

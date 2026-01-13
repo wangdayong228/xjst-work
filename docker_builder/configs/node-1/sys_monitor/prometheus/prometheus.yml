@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 60s
+  evaluation_interval: 60s
+
+scrape_configs:
+  - job_name: linux
+    static_configs:
+      - targets: ["baas_monitor_exporter:9100"]
+        labels:
+          instance: localhost

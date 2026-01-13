@@ -1,0 +1,48 @@
+# 联盟链节点通用Dockerfile
+# 适用于node-1到node-4的所有节点镜像
+FROM ubuntu:22.04
+
+# 设置工作目录
+WORKDIR /opt/blockchain
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    openssh-client \
+    curl \
+    wget \
+    net-tools \
+    procps \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# 复制通用脚本（所有镜像都一样）
+COPY config_processor_compat.py ./
+COPY deploy_l1_contracts.py ./
+COPY entrypoint.sh ./
+RUN chmod +x config_processor_compat.py entrypoint.sh
+
+# 复制区块链二进制文件（需要从构建上下文提供）
+COPY conflux ./
+RUN chmod +x conflux
+
+# Python依赖：用于自动部署L1合约
+RUN pip3 install --no-cache-dir web3==6.20.1 eth-account==0.10.0
+
+# 复制节点特定配置文件
+# 这部分通过构建脚本动态复制，每个节点镜像不同
+# 包括：config.toml, customized_config.toml 等
+COPY node-configs/* ./
+
+# 暴露端口
+# P2P端口: 30005 (统一，可在运行时修改)
+# RPC服务端口:
+#   30010: HTTP JSON-RPC
+#   30011: Local HTTP JSON-RPC
+#   30012: gRPC TCP
+#   30013: TCP JSON-RPC
+EXPOSE 30005 30010 30011 30012 30013
+
+# 设置入口点
+ENTRYPOINT ["./entrypoint.sh"]

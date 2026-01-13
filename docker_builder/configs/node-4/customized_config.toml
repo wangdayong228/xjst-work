@@ -1,0 +1,18 @@
+port = 30005
+
+jsonrpc_http_port = 30010
+
+jsonrpc_local_http_port = 30011
+
+grpc_tcp_port=30012
+
+jsonrpc_tcp_port=30013
+
+log_file = './conflux.log'
+
+log_level = "info"
+
+genesis_accounts =  "16132f425a796019f8a011bfa10f43113ca91b45=900000000000000000000000000000000000000000000000000000"
+
+tx_pool_min_tx_gas_price = 0
+
