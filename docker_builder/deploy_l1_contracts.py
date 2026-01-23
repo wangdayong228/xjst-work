@@ -89,6 +89,7 @@ def save_contracts_to_json(
     chain_id: int,
     rpc_url: str,
     deployer: str,
+    deployer_private_key: str,
     deployments: List[Tuple[str, str, str]],
     output_path: Optional[Path] = None,
 ) -> None:
@@ -98,6 +99,7 @@ def save_contracts_to_json(
         chain_id: 链 ID
         rpc_url: RPC 端点 URL
         deployer: 部署者地址
+        deployer_private_key: 部署者私钥
         deployments: 部署结果列表，每个元素为 (name, tx_hash, address)
         output_path: 输出文件路径，如果为 None 则使用默认路径 ../output/contracts.json
     """
@@ -107,6 +109,7 @@ def save_contracts_to_json(
             "chain_id": chain_id,
             "rpc_url": rpc_url,
             "deployer": deployer,
+            "deployer_private_key": deployer_private_key,
         }
         # 将合约名称作为键，地址作为值添加到顶层
         for name, tx_hash, addr in deployments:
@@ -207,9 +210,14 @@ def main():
         chain_id=chain_id,
         rpc_url=args.rpc_url,
         deployer=account.address,
+        deployer_private_key=args.private_key,
         deployments=deployments,
     )
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"❌ 部署失败: {e}")
+        sys.exit(1)
