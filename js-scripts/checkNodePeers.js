@@ -15,12 +15,17 @@ function logDbg(msg) {
     if (DEBUG) log(`[DBG] ${msg}`);
 }
 
+// input 格式为 "[44.252.111.46,44.247.52.12,54.245.12.147,44.249.51.138]"
 function parseIps(input) {
     if (!input || typeof input !== 'string') return [];
-    // 兼容：逗号/空格/换行分隔
-    return input
+    const s = input.trim();
+    // 支持两种：
+    // 1) "[ip1,ip2,...]"（不带引号）
+    // 2) "ip1, ip2" 或 "ip1 ip2"
+    const noBrackets = s.replace(/^\s*\[\s*/, '').replace(/\s*\]\s*$/, '');
+    return noBrackets
         .split(/[,\s]+/g)
-        .map((s) => s.trim())
+        .map((ip) => ip.trim())
         .filter(Boolean);
 }
 
