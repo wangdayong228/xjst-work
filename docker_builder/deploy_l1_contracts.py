@@ -110,6 +110,8 @@ def save_contracts_to_json(
             "rpc_url": rpc_url,
             "deployer": deployer,
             "deployer_private_key": deployer_private_key,
+            "l2_state_sender": "0x8e63912845b8785797e3c6680767da4a4a0f3c5a",
+            "l2_unified_bridge":"0x8226ed70c17e6c544b0d602f5cbddcb9f84d1314",
         }
         # 将合约名称作为键，地址作为值添加到顶层
         for name, tx_hash, addr in deployments:
