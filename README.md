@@ -15,6 +15,10 @@
 
 梓含的 l1_bridge_relay_contract 需要注册两个合约： l1_state_sender 和 l1_unified_bridge
 
+## L2 桥合约地址是固定的
+1. l2_state_sender: 0x8e63912845b8785797e3c6680767da4a4a0f3c5a
+2. l2_unified_bridge: 0x8226ed70c17e6c544b0d602f5cbddcb9f84d1314
+
 # 附录
 - 公开测试RPC： http://139.224.187.155:30009
 - 默认 L2 RPC 端口：30010
