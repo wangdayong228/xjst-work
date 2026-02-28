@@ -90,6 +90,7 @@ def save_contracts_to_json(
     rpc_url: str,
     deployer: str,
     deployer_private_key: str,
+    l1_start_epoch: int,
     deployments: List[Tuple[str, str, str]],
     output_path: Optional[Path] = None,
 ) -> None:
@@ -100,6 +101,7 @@ def save_contracts_to_json(
         rpc_url: RPC 端点 URL
         deployer: 部署者地址
         deployer_private_key: 部署者私钥
+        l1_start_epoch: L1 开始高度（latest block number）
         deployments: 部署结果列表，每个元素为 (name, tx_hash, address)
         output_path: 输出文件路径，如果为 None 则使用默认路径 ../output/contracts.json
     """
@@ -110,6 +112,7 @@ def save_contracts_to_json(
             "rpc_url": rpc_url,
             "deployer": deployer,
             "deployer_private_key": deployer_private_key,
+            "l1_start_epoch": l1_start_epoch,
             "l2_state_sender": "0x8e63912845b8785797e3c6680767da4a4a0f3c5a",
             "l2_unified_bridge":"0x8226ed70c17e6c544b0d602f5cbddcb9f84d1314",
         }
@@ -184,6 +187,8 @@ def main():
 
     print(f"Connected to {args.rpc_url}, chain_id={chain_id} (node={detected_chain_id})")
     print(f"Deployer: {account.address}")
+    l1_start_epoch = w3.eth.block_number
+    print(f"L1 latest block number (l1_start_epoch): {l1_start_epoch}")
 
     current_nonce = w3.eth.get_transaction_count(account.address)
 
@@ -213,6 +218,7 @@ def main():
         rpc_url=args.rpc_url,
         deployer=account.address,
         deployer_private_key=args.private_key,
+        l1_start_epoch=l1_start_epoch,
         deployments=deployments,
     )
 
