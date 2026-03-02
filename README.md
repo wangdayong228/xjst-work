@@ -5,6 +5,7 @@
 1. [L1_ADMIN_PRIVATE_KEY](./client/client_deploy.sh) 中 L1_ADMIN_PRIVATE_KEY : 
    - L1部署L1合约
    - 处理 L2 -> L1 的跨链交易
+   > **xjst_pipe.sh 中为 L1_VAULT_PRIVATE_KEY**
 
 # 桥合约
 桥合约分为发送合约和接受合约，而两条链都需要这两种合约
