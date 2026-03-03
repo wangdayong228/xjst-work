@@ -130,7 +130,7 @@ async function checkNodePeer(ip) {
 (async () => {
     const ips = parseIps(ipsStr);
     log(`解析IP：count=${ips.length}`);
-    await checkNodePeers(ips, timeout, 3);
+    await checkNodePeers(ips, timeout, 10);
     log('全部节点检查通过');
 })().catch((err) => {
     const msg = err && err.message ? err.message : String(err);
