@@ -1,5 +1,5 @@
 const ipsStr = process.argv[2];
-const timeout = process.argv[3] || 3;
+const retryTimes = process.argv[3] || 10;
 
 const DEBUG = process.env.DEBUG === '1' || process.env.DEBUG === 'true';
 
@@ -34,7 +34,7 @@ function sleep(ms) {
 }
 
 async function checkNodePeers(ips, retryTimes, minPeers = 3) {
-    log(`启动：ipsStr=${ipsStr || ''} timeout=${timeout || ''} minPeers=${minPeers} DEBUG=${DEBUG ? '1' : '0'}`);
+    log(`启动：ipsStr=${ipsStr || ''} timeout=${retryTimes || ''} minPeers=${minPeers} DEBUG=${DEBUG ? '1' : '0'}`);
     if (!Array.isArray(ips) || ips.length === 0) {
         throw new Error('缺少 ips 参数：请传入逗号或空格分隔的 IP 列表');
     }
@@ -66,8 +66,8 @@ async function checkNodePeers(ips, retryTimes, minPeers = 3) {
             }
 
             if (attempt < maxRetries) {
-                logDbg(`等待重试：ip=${ip} sleepMs=1000 nextAttempt=${attempt + 2}/${maxRetries + 1}`);
-                await sleep(1000);
+                logDbg(`等待重试：ip=${ip} sleepMs=5000 nextAttempt=${attempt + 2}/${maxRetries + 1}`);
+                await sleep(5000);
             }
         }
 
@@ -130,7 +130,7 @@ async function checkNodePeer(ip) {
 (async () => {
     const ips = parseIps(ipsStr);
     log(`解析IP：count=${ips.length}`);
-    await checkNodePeers(ips, timeout, 10);
+    await checkNodePeers(ips, retryTimes, 3);
     log('全部节点检查通过');
 })().catch((err) => {
     const msg = err && err.message ? err.message : String(err);
