@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -80,10 +81,24 @@ def _raise_rpc_error(method: str, request, exc: Exception) -> None:
 
 
 def _rpc_call(method: str, request, fn: Callable[[], Any]) -> Any:
-    try:
-        return fn()
-    except Exception as exc:
-        _raise_rpc_error(method, request, exc)
+    max_attempts = 3
+    retry_interval_seconds = 1
+    last_exc: Optional[Exception] = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return fn()
+        except Exception as exc:
+            last_exc = exc
+            if attempt < max_attempts:
+                time.sleep(retry_interval_seconds)
+                continue
+
+    _raise_rpc_error(
+        method,
+        request,
+        last_exc if last_exc is not None else RuntimeError("Unknown RPC error"),
+    )
 
 
 def deploy_contract(
