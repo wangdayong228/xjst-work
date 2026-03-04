@@ -11,7 +11,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 try:
     from web3 import Web3, HTTPProvider
@@ -55,6 +55,37 @@ def make_web3(rpc_url: str) -> Web3:
     return w3
 
 
+def _summarize_hex_payload(payload: str, keep_chars: int = 16) -> str:
+    payload_str = str(payload)
+    payload_len = len(payload_str)
+    if payload_len <= keep_chars * 2:
+        return payload_str
+    return f"{payload_str[:keep_chars]}...{payload_str[-keep_chars:]} (len={payload_len})"
+
+
+def _summarize_tx_request(tx: Dict) -> Dict:
+    request = {}
+    for key in ("from", "to", "value", "nonce", "chainId", "gasPrice", "gas"):
+        if key in tx:
+            request[key] = tx[key]
+
+    if "data" in tx:
+        request["data"] = _summarize_hex_payload(tx["data"])
+
+    return request
+
+
+def _raise_rpc_error(method: str, request, exc: Exception) -> None:
+    raise RuntimeError(f"RPC {method} failed, request={request}, error={exc}") from exc
+
+
+def _rpc_call(method: str, request, fn: Callable[[], Any]) -> Any:
+    try:
+        return fn()
+    except Exception as exc:
+        _raise_rpc_error(method, request, exc)
+
+
 def deploy_contract(
     w3: Web3, account, bytecode: str, nonce: int, chain_id: int, gas_price: int = None
 ) -> Tuple[str, str]:
@@ -65,13 +96,45 @@ def deploy_contract(
         "nonce": nonce,
         "chainId": chain_id,
     }
-    tx["gasPrice"] = gas_price if gas_price is not None else w3.eth.gas_price
-    tx["gas"] = w3.eth.estimate_gas(tx)
+    if gas_price is not None:
+        tx["gasPrice"] = gas_price
+    else:
+        tx["gasPrice"] = _rpc_call(
+            "eth_gasPrice",
+            {"from": account.address},
+            lambda: w3.eth.gas_price,
+        )
+
+    tx["gas"] = _rpc_call(
+        "eth_estimateGas",
+        _summarize_tx_request(tx),
+        lambda: w3.eth.estimate_gas(tx),
+    )
 
     signed = account.sign_transaction(tx)
-    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
-    receipt = w3.eth.wait_for_transaction_receipt(
-        tx_hash, timeout=600, poll_latency=3
+    raw_tx_hex = Web3.to_hex(signed.rawTransaction)
+
+    tx_hash = _rpc_call(
+        "eth_sendRawTransaction",
+        {
+            "from": account.address,
+            "nonce": nonce,
+            "chainId": chain_id,
+            "rawTransaction": _summarize_hex_payload(raw_tx_hex),
+        },
+        lambda: w3.eth.send_raw_transaction(signed.rawTransaction),
+    )
+
+    receipt = _rpc_call(
+        "eth_getTransactionReceipt(wait)",
+        {
+            "txHash": tx_hash.hex(),
+            "timeout": 600,
+            "poll_latency": 3,
+        },
+        lambda: w3.eth.wait_for_transaction_receipt(
+            tx_hash, timeout=600, poll_latency=3
+        ),
     )
 
     status = receipt.get("status", 0)
