@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import time
+import traceback
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -305,5 +306,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(f"❌ 部署失败: {e}")
+        print(f"❌ 部署失败: {e}\n{traceback.format_exc()}")
         sys.exit(1)
