@@ -1,3 +1,4 @@
 output
 deployment_logs_*
 node_modules
+deploy_l1_contracts_v*.py
