@@ -48,6 +48,7 @@ show_help() {
     echo "  BASE_RPC_PORT    - 可选，基础RPC端口 (默认: 30010)"
     echo "  AUTO_DEPLOY_L1_CONTRACTS / DEPLOY_L1_CONTRACTS - 可选，true 时容器内自动部署 L1 合约"
     echo "  L1_CHAIN_ID, L1_GAS_PRICE, L1_ADMIN_PRIVATE_KEY, L1_ADMIN_ADDRESS - 可选，透传 L1 部署参数"
+    echo "  BRIDGE_GAS_PRICE - 可选，透传容器内 bridge 交易 gas_price 覆盖值"
     echo "  FETCH_L1_FROM_NODE1   - 可选，true 时从 node-1 获取 L1 合约结果"
     echo "  NODE_1_SSH_USER       - 可选，node-1 SSH 用户 (默认: ubuntu)"
     echo "  NODE_1_SSH_KEY_PATH   - 可选，node-1 SSH 私钥路径(宿主机路径，将映射到容器 /root/4node-test.pem)"
@@ -101,6 +102,7 @@ L1_CORESPACE_RPC_URL="${L1_CORESPACE_RPC_URL:-}"
 AUTO_DEPLOY_L1_CONTRACTS="${AUTO_DEPLOY_L1_CONTRACTS:-${DEPLOY_L1_CONTRACTS:-}}"
 L1_CHAIN_ID="${L1_CHAIN_ID:-}"
 L1_GAS_PRICE="${L1_GAS_PRICE:-}"
+BRIDGE_GAS_PRICE="${BRIDGE_GAS_PRICE:-}"
 L1_ADMIN_PRIVATE_KEY="${L1_ADMIN_PRIVATE_KEY:-}"
 L1_ADMIN_ADDRESS="${L1_ADMIN_ADDRESS:-}"
 L1_STATE_SENDER_ADDR="${L1_STATE_SENDER_ADDR:-}"
@@ -153,6 +155,9 @@ if [ -n "$L1_CHAIN_ID" ]; then
 fi
 if [ -n "$L1_GAS_PRICE" ]; then
     echo "📍 L1 Gas Price: $L1_GAS_PRICE"
+fi
+if [ -n "$BRIDGE_GAS_PRICE" ]; then
+    echo "📍 Bridge Gas Price Override: $BRIDGE_GAS_PRICE"
 fi
 if [ -n "$L1_ADMIN_ADDRESS" ]; then
     echo "📍 L1 Admin Address: $L1_ADMIN_ADDRESS"
@@ -278,6 +283,9 @@ if [ -n "$L1_CHAIN_ID" ]; then
 fi
 if [ -n "$L1_GAS_PRICE" ]; then
     docker_args+=(-e "L1_GAS_PRICE=$L1_GAS_PRICE")
+fi
+if [ -n "$BRIDGE_GAS_PRICE" ]; then
+    docker_args+=(-e "BRIDGE_GAS_PRICE=$BRIDGE_GAS_PRICE")
 fi
 if [ -n "$L1_ADMIN_PRIVATE_KEY" ]; then
     docker_args+=(-e "L1_ADMIN_PRIVATE_KEY=$L1_ADMIN_PRIVATE_KEY")
