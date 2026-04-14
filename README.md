@@ -12,7 +12,7 @@
 1. 发送桥合约为 state sender 合约
 2. 接收桥合约为 unified bridge 合约
 
-所以跨链交易涉及到 4 个合约： 源链 state sender, 源链 unified bridge, 目标链 state sender，源链 unified bridge
+所以跨链交易涉及到 4 个合约： 源链A l1 state sender, 源链A l1 unified bridge, 目标链B l1 state sender，目标链B l2 unified bridge
 
 梓含的 l1_bridge_relay_contract 需要注册两个合约： l1_state_sender 和 l1_unified_bridge
 
