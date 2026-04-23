@@ -20,6 +20,10 @@
 1. l2_state_sender: 0x8e63912845b8785797e3c6680767da4a4a0f3c5a
 2. l2_unified_bridge: 0x8226ed70c17e6c544b0d602f5cbddcb9f84d1314
 
+## RPC
+
+- 获取合约信息 `cast rpc layer2_getBridgeInfo --rpc-url http://35.95.146.7:30010`
+
 # 附录
 - 公开测试RPC： http://139.224.187.155:30009
 - 默认 L2 RPC 端口：30010
